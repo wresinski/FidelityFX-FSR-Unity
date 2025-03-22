@@ -25,11 +25,6 @@ FSR3& GetFSRInstance(uint32_t id)
     return *instances[id];
 }
 
-FSR3::~FSR3()
-{
-    Destroy();
-}
-
 FfxErrorCode FSR3::Init(const InitParam& initParam)
 {
     Destroy();
