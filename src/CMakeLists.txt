@@ -65,8 +65,8 @@ if(FSR_VERSION STREQUAL "fsr2")
 elseif(FSR_VERSION STREQUAL "fsr3")
 	set(FSR_VERSION_DEF "FSR_3")
 	if(NOT FSR_BACKEND STREQUAL "all")
-		if(NOT FSR_BACKEND STREQUAL "dx12")
-			message(FATAL_ERROR "Unsupported fsr3 backend, must be: dx12")
+		if(FSR_BACKEND STREQUAL "dx11")
+			message(FATAL_ERROR "Unsupported fsr3 backend")
 		endif()
 		target_link_libraries(${FSR_UNITY_PLUGIN} PRIVATE
 		debug "ffx_fsr3_x64d"
@@ -84,8 +84,8 @@ elseif(FSR_VERSION STREQUAL "fsr3")
 elseif(FSR_VERSION STREQUAL "fsrapi")
 	set(FSR_VERSION_DEF "FSR_API")
 	if(NOT FSR_BACKEND STREQUAL "all")
-		if(NOT FSR_BACKEND STREQUAL "dx12")
-			message(FATAL_ERROR "Unsupported fsr3 backend, must be: dx12")
+		if(FSR_BACKEND STREQUAL "dx11")
+			message(FATAL_ERROR "Unsupported fsrapi backend")
 		endif()
 		target_link_libraries(${FSR_UNITY_PLUGIN} PRIVATE
 		debug "amd_fidelityfx_$CACHE{FSR_BACKEND}d"

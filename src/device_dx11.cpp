@@ -8,20 +8,20 @@ bool DeviceDX11::InternalInit()
     if (m_pUnityInterfaces != nullptr) {
         const auto unityGraphicsD3D11 = m_pUnityInterfaces->Get<IUnityGraphicsD3D11>();
         if (unityGraphicsD3D11 != nullptr) {
-            m_pDevice = unityGraphicsD3D11->GetDevice();
+            m_pD3D11Device = unityGraphicsD3D11->GetDevice();
         }
-        if (m_pDevice != nullptr) {
-            m_pDevice->GetImmediateContext(&m_pDeviceContext);
+        if (m_pD3D11Device != nullptr) {
+            m_pD3D11Device->GetImmediateContext(&m_pD3D11DeviceContext);
         }
     }
 
-    return m_pDevice != nullptr;
+    return m_pD3D11Device != nullptr;
 }
 
 void DeviceDX11::InternalDestroy()
 {
-    m_pDeviceContext->Release();
-    m_pDevice = nullptr;
+    m_pD3D11DeviceContext->Release();
+    m_pD3D11Device = nullptr;
 }
 
 void* DeviceDX11::GetNativeResource(UnityTextureID textureID)
@@ -38,10 +38,10 @@ void* DeviceDX11::GetNativeResource(UnityTextureID textureID)
 
 void* DeviceDX11::GetNativeDevice()
 {
-    return m_pDevice;
+    return m_pD3D11Device;
 }
 
 void* DeviceDX11::GetNativeCommandList()
 {
-    return m_pDeviceContext;
+    return m_pD3D11DeviceContext;
 }

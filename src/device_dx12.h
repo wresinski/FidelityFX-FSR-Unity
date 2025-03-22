@@ -30,12 +30,12 @@ private:
 
 private:
     ID3D12Device* m_pD3D12Device = nullptr;
-    ID3D12Fence* m_pFence = nullptr;
+    ID3D12Fence* m_pD3D12Fence = nullptr;
 
     struct CommandBuffer
     {
-        ID3D12CommandAllocator* commandAllocator;
-        ID3D12GraphicsCommandList2* commandList;
+        ID3D12CommandAllocator* d3d12CommandAllocator;
+        ID3D12GraphicsCommandList2* d3d12CommandList;
         uint64_t fenceValue;
     };
     std::vector<CommandBuffer> m_CommandBufferList = {};

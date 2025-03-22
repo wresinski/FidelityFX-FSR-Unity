@@ -14,7 +14,10 @@ DllLoader& DllLoader::Instance(const wchar_t* path)
     std::lock_guard<std::mutex> lock(criticalSection);
     if (dllMap.find(path) == dllMap.end()) {
         dllMap[path].reset(new DllLoader);
-        dllMap[path]->LoadDll(path);
+        bool res = dllMap[path]->LoadDll(path);
+        if (!res) {
+            FSR_ERROR("Failed to load dll");
+        }
     }
     return *dllMap[path];
 }
@@ -40,7 +43,7 @@ inline HMODULE SearchAndLoadDll(const std::wstring& dir, const std::wstring& dll
                 hModule = LoadLibraryExW(path.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
                 if (!hModule) {
                     //DWORD error = GetLastError();
-                    FSR_ERROR("DLL Load failed");
+                    FSR_ERROR("LoadLibraryExW failed");
                 }
             }
             if (hModule) {

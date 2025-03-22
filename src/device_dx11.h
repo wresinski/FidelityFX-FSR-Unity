@@ -22,6 +22,6 @@ private:
     virtual void InternalDestroy() override;
 
 private:
-    ID3D11Device* m_pDevice = nullptr;
-    ID3D11DeviceContext* m_pDeviceContext = nullptr;
+    ID3D11Device* m_pD3D11Device = nullptr;
+    ID3D11DeviceContext* m_pD3D11DeviceContext = nullptr;
 };

@@ -59,23 +59,32 @@ ffx::ReturnCode FSRAPI::Init(const InitParam& initParam, uint32_t fsrVersion)
     }
 
     m_Reset = true;
-#if defined(FSR_BACKEND_DX12) || defined(FSR_BACKEND_ALL)
-    ffx::CreateBackendDX12Desc backendDesc{};
-    backendDesc.header.type = FFX_API_CREATE_CONTEXT_DESC_TYPE_BACKEND_DX12;
-    backendDesc.device = static_cast<ID3D12Device*>(Device::Instance().GetNativeDevice());
-#else
-#error unsupported fsrapi backend
-#endif
+
     ffx::CreateContextDescUpscale createFsr{};
     createFsr.maxUpscaleSize = {initParam.displaySizeWidth, initParam.displaySizeHeight};
     createFsr.maxRenderSize = {initParam.displaySizeWidth, initParam.displaySizeHeight};
     createFsr.flags = initParam.flags;
 
     ffx::ReturnCode retCode;
-    if (fsrVersion != 0) {
-        retCode = ffx::CreateContext(m_Context, nullptr, createFsr, backendDesc, versionOverride);
-    } else {
-        retCode = ffx::CreateContext(m_Context, nullptr, createFsr, backendDesc);
+    UnityGfxRenderer renderer = Device::Instance().GetDeviceType();
+    switch (renderer) {
+#if defined(FSR_BACKEND_DX12) || defined(FSR_BACKEND_ALL)
+    case kUnityGfxRendererD3D12:
+    {
+        ffx::CreateBackendDX12Desc backendDesc{};
+        backendDesc.header.type = FFX_API_CREATE_CONTEXT_DESC_TYPE_BACKEND_DX12;
+        backendDesc.device = static_cast<ID3D12Device*>(Device::Instance().GetNativeDevice());
+        if (fsrVersion != 0) {
+            retCode = ffx::CreateContext(m_Context, nullptr, createFsr, backendDesc, versionOverride);
+        } else {
+            retCode = ffx::CreateContext(m_Context, nullptr, createFsr, backendDesc);
+        }
+        break;
+    }
+#endif
+    default:
+        FSR_ERROR("Unsupported fsrapi backend");
+        break;
     }
     if (retCode == ffx::ReturnCode::Ok) {
         m_ContextCreated = true;
