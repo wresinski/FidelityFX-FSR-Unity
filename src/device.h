@@ -3,12 +3,13 @@
 #include <cstdint>
 
 #include "IUnityInterface.h"
+#include "IUnityGraphics.h"
 
 
 class Device
 {
 public:
-    static Device& Instance();
+    static Device& Instance(UnityGfxRenderer deviceType = kUnityGfxRendererNull);
 
 protected:
     Device() {}
@@ -20,8 +21,10 @@ private:
     Device& operator=(const Device&&) = delete;
 
 public:
+    virtual ~Device() { Destroy(); }
     bool Init(IUnityInterfaces* unityInterfaces);
     void Destroy();
+    virtual UnityGfxRenderer GetDeviceType() = 0;
     virtual void* GetNativeResource(UnityTextureID textureID) = 0;
     virtual void SetResourceState(void* res, uint32_t state) {}
     virtual void* GetNativeDevice() = 0;

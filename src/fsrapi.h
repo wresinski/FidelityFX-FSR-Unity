@@ -66,7 +66,7 @@ struct DispatchParam
 class FSRAPI
 {
 public:
-    ~FSRAPI();
+    ~FSRAPI() { Destroy(); }
     ffx::ReturnCode Init(const InitParam& initParam, uint32_t fsrVersion = 0);
     void Destroy();
     std::array<float, 2> GetJitterOffset(const int32_t index, const int32_t renderWidth, const int32_t displayWidth);

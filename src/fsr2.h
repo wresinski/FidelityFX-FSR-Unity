@@ -66,7 +66,7 @@ struct DispatchParam
 class FSR2
 {
 public:
-    ~FSR2();
+    ~FSR2() { Destroy(); }
     FfxErrorCode Init(const InitParam& initParam);
     void Destroy();
     std::array<float, 2> GetJitterOffset(const int32_t index, const int32_t renderWidth, const int32_t displayWidth);

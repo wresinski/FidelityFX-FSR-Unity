@@ -5,13 +5,13 @@
 
 #include "fsrunityplugin.h"
 #include "device.h"
+#include "dllloader.h"
 
-#if defined(FSR_BACKEND_DX11)
+#if defined(FSR_BACKEND_DX11) || defined(FSR_BACKEND_ALL)
 #include "dx11/ffx_fsr2_dx11.h"
-#elif defined(FSR_BACKEND_DX12)
+#endif
+#if defined(FSR_BACKEND_DX12) || defined(FSR_BACKEND_ALL)
 #include "dx12/ffx_fsr2_dx12.h"
-#else
-#error unsupported FSR2 backend
 #endif
 
 
@@ -26,11 +26,6 @@ FSR2& GetFSRInstance(uint32_t id)
         instances.emplace_back(new FSR2());
     }
     return *instances[id];
-}
-
-FSR2::~FSR2()
-{
-    Destroy();
 }
 
 FfxErrorCode FSR2::Init(const InitParam& initParam)
@@ -152,51 +147,190 @@ void FSR2::SetTextureID(const TextureName textureName, const UnityTextureID text
 
 size_t GetScratchMemorySize()
 {
-#if defined(FSR_BACKEND_DX11)
-    return ffxFsr2GetScratchMemorySizeDX11();
-#elif defined(FSR_BACKEND_DX12)
-    return ffxFsr2GetScratchMemorySizeDX12();
-#else
-#error unsupported FSR2 backend
+    UnityGfxRenderer renderer = Device::Instance().GetDeviceType();
+    switch (renderer) {
+#if defined(FSR_BACKEND_DX11) || defined(FSR_BACKEND_ALL)
+    case kUnityGfxRendererD3D11:
+        return ffxFsr2GetScratchMemorySizeDX11();
 #endif
+#if defined(FSR_BACKEND_DX12) || defined(FSR_BACKEND_ALL)
+    case kUnityGfxRendererD3D12:
+        return ffxFsr2GetScratchMemorySizeDX12();
+#endif
+    default:
+        FSR_ERROR("Unsupported fsr2 backend");
+        return 0;
+    }
 }
 
 FfxErrorCode GetInterface(void* device, void* scratchBuffer, size_t scratchBuffersize, FfxFsr2Interface* fsr2Interface)
 {
-#if defined(FSR_BACKEND_DX11)
-    return ffxFsr2GetInterfaceDX11(fsr2Interface, static_cast<ID3D11Device*>(device), scratchBuffer, scratchBuffersize);
-#elif defined(FSR_BACKEND_DX12)
-    return ffxFsr2GetInterfaceDX12(fsr2Interface, static_cast<ID3D12Device*>(device), scratchBuffer, scratchBuffersize);
-#else
-#error unsupported FSR2 backend
+    UnityGfxRenderer renderer = Device::Instance().GetDeviceType();
+    switch (renderer) {
+#if defined(FSR_BACKEND_DX11) || defined(FSR_BACKEND_ALL)
+    case kUnityGfxRendererD3D11:
+        return ffxFsr2GetInterfaceDX11(fsr2Interface, static_cast<ID3D11Device*>(device), scratchBuffer, scratchBuffersize);
 #endif
+#if defined(FSR_BACKEND_DX12) || defined(FSR_BACKEND_ALL)
+    case kUnityGfxRendererD3D12:
+        return ffxFsr2GetInterfaceDX12(fsr2Interface, static_cast<ID3D12Device*>(device), scratchBuffer, scratchBuffersize);
+#endif
+    default:
+        FSR_ERROR("Unsupported fsr2 backend");
+        return FFX_ERROR_NULL_DEVICE;
+    }
 }
 
 FfxResource GetResource(FfxFsr2Context* context, void* res, const wchar_t* name, FfxResourceStates state)
 {
-#if defined(FSR_BACKEND_DX11)
-    return ffxGetResourceDX11(context, static_cast<ID3D11Resource*>(res), name, state);
-#elif defined(FSR_BACKEND_DX12)
-    auto getResourceState = [](uint32_t ffxState) {
-        switch (ffxState) {
-        case FFX_RESOURCE_STATE_UNORDERED_ACCESS:
-            return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-        case FFX_RESOURCE_STATE_COMPUTE_READ:
-            return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-        case FFX_RESOURCE_STATE_COPY_SRC:
-            return D3D12_RESOURCE_STATE_COPY_SOURCE;
-        case FFX_RESOURCE_STATE_COPY_DEST:
-            return D3D12_RESOURCE_STATE_COPY_DEST;
-        case FFX_RESOURCE_STATE_GENERIC_READ:
-            return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_COPY_SOURCE;
-        default:
-            return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-        }
-    };
-    Device::Instance().SetResourceState(res, getResourceState(state));
+    UnityGfxRenderer renderer = Device::Instance().GetDeviceType();
+    switch (renderer) {
+#if defined(FSR_BACKEND_DX11) || defined(FSR_BACKEND_ALL)
+    case kUnityGfxRendererD3D11:
+        return ffxGetResourceDX11(context, static_cast<ID3D11Resource*>(res), name, state);
+#endif
+#if defined(FSR_BACKEND_DX12) || defined(FSR_BACKEND_ALL)
+    case kUnityGfxRendererD3D12:
+    {
+        auto getResourceState = [](uint32_t ffxState) {
+            switch (ffxState) {
+            case FFX_RESOURCE_STATE_UNORDERED_ACCESS:
+                return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+            case FFX_RESOURCE_STATE_COMPUTE_READ:
+                return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+            case FFX_RESOURCE_STATE_COPY_SRC:
+                return D3D12_RESOURCE_STATE_COPY_SOURCE;
+            case FFX_RESOURCE_STATE_COPY_DEST:
+                return D3D12_RESOURCE_STATE_COPY_DEST;
+            case FFX_RESOURCE_STATE_GENERIC_READ:
+                return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_COPY_SOURCE;
+            default:
+                return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+            }
+        };
+        Device::Instance().SetResourceState(res, getResourceState(state));
+        return ffxGetResourceDX12(context, static_cast<ID3D12Resource*>(res), name, state);
+    }
+#endif
+    default:
+        FSR_ERROR("Unsupported fsr2 backend");
+        return FfxResource{};
+    }
+}
 
-    return ffxGetResourceDX12(context, static_cast<ID3D12Resource*>(res), name, state);
+#if defined(FSR_BACKEND_ALL)
+inline std::wstring GetDllName()
+{
+#if defined(_DEBUG)
+    return L"ffx_fsr2_api_x64d.dll";
 #else
-#error unsupported FSR2 backend
+    return L"ffx_fsr2_api_x64.dll";
 #endif
 }
+
+inline std::wstring GetDllNameBackend()
+{
+    UnityGfxRenderer renderer = Device::Instance().GetDeviceType();
+    switch (renderer) {
+    case kUnityGfxRendererD3D11:
+#if defined(_DEBUG)
+        return L"ffx_fsr2_api_dx11_x64d.dll";
+#else
+        return L"ffx_fsr2_api_dx11_x64.dll";
+#endif
+    case kUnityGfxRendererD3D12:
+#if defined(_DEBUG)
+        return L"ffx_fsr2_api_dx12_x64d.dll";
+#else
+        return L"ffx_fsr2_api_dx12_x64.dll";
+#endif
+    default:
+        FSR_ERROR("Unsupported fsr2 backend");
+        return L"";
+    }
+}
+
+typedef size_t(*PfnFfxFsr2GetScratchMemorySizeDX11)();
+size_t ffxFsr2GetScratchMemorySizeDX11()
+{
+    static PfnFfxFsr2GetScratchMemorySizeDX11 getScratchMemorySizeDX11 = reinterpret_cast<PfnFfxFsr2GetScratchMemorySizeDX11>(DllLoader::Instance(GetDllNameBackend().c_str()).GetProcAddress("ffxFsr2GetScratchMemorySizeDX11"));
+    return getScratchMemorySizeDX11();
+}
+
+typedef size_t(*PfnFfxFsr2GetScratchMemorySizeDX12)();
+size_t ffxFsr2GetScratchMemorySizeDX12()
+{
+    static PfnFfxFsr2GetScratchMemorySizeDX12 getScratchMemorySizeDX12 = reinterpret_cast<PfnFfxFsr2GetScratchMemorySizeDX12>(DllLoader::Instance(GetDllNameBackend().c_str()).GetProcAddress("ffxFsr2GetScratchMemorySizeDX12"));
+    return getScratchMemorySizeDX12();
+}
+
+typedef FfxErrorCode(*PfnFfxFsr2GetInterfaceDX11)(FfxFsr2Interface* fsr2Interface, ID3D11Device* device, void* scratchBuffer, size_t scratchBufferSize);
+FfxErrorCode ffxFsr2GetInterfaceDX11(FfxFsr2Interface* fsr2Interface, ID3D11Device* device, void* scratchBuffer, size_t scratchBufferSize)
+{
+    static PfnFfxFsr2GetInterfaceDX11 getInterfaceDX11 = reinterpret_cast<PfnFfxFsr2GetInterfaceDX11>(DllLoader::Instance(GetDllNameBackend().c_str()).GetProcAddress("ffxFsr2GetInterfaceDX11"));
+    return getInterfaceDX11(fsr2Interface, device, scratchBuffer, scratchBufferSize);
+}
+
+typedef FfxErrorCode(*PfnFfxFsr2GetInterfaceDX12)(FfxFsr2Interface* fsr2Interface, ID3D12Device* device, void* scratchBuffer, size_t scratchBufferSize);
+FfxErrorCode ffxFsr2GetInterfaceDX12(FfxFsr2Interface* fsr2Interface, ID3D12Device* device, void* scratchBuffer, size_t scratchBufferSize)
+{
+    static PfnFfxFsr2GetInterfaceDX12 getInterfaceDX12 = reinterpret_cast<PfnFfxFsr2GetInterfaceDX12>(DllLoader::Instance(GetDllNameBackend().c_str()).GetProcAddress("ffxFsr2GetInterfaceDX12"));
+    return getInterfaceDX12(fsr2Interface, device, scratchBuffer, scratchBufferSize);
+}
+
+typedef FfxResource(*PfnFfxGetResourceDX11)(FfxFsr2Context* context, ID3D11Resource* resDx11, const wchar_t* name, FfxResourceStates state);
+FfxResource ffxGetResourceDX11(FfxFsr2Context* context, ID3D11Resource* resDx11, const wchar_t* name, FfxResourceStates state)
+{
+    static PfnFfxGetResourceDX11 getResourceDX11 = reinterpret_cast<PfnFfxGetResourceDX11>(DllLoader::Instance(GetDllNameBackend().c_str()).GetProcAddress("ffxGetResourceDX11"));
+    return getResourceDX11(context, resDx11, name, state);
+}
+
+typedef FfxResource(*PfnFfxGetResourceDX12)(FfxFsr2Context* context, ID3D12Resource* resDx12, const wchar_t* name, FfxResourceStates state, UINT shaderComponentMapping);
+FfxResource ffxGetResourceDX12(FfxFsr2Context* context, ID3D12Resource* resDx12, const wchar_t* name, FfxResourceStates state, UINT shaderComponentMapping)
+{
+    static PfnFfxGetResourceDX12 getResourceDX12 = reinterpret_cast<PfnFfxGetResourceDX12>(DllLoader::Instance(GetDllNameBackend().c_str()).GetProcAddress("ffxGetResourceDX12"));
+    return getResourceDX12(context, resDx12, name, state, shaderComponentMapping);
+}
+
+typedef FfxErrorCode(*PfnFfxFsr2ContextCreate)(FfxFsr2Context* context, const FfxFsr2ContextDescription* contextDescription);
+FfxErrorCode ffxFsr2ContextCreate(FfxFsr2Context* context, const FfxFsr2ContextDescription* contextDescription)
+{
+    static PfnFfxFsr2ContextCreate fsr2ContextCreate = reinterpret_cast<PfnFfxFsr2ContextCreate>(DllLoader::Instance(GetDllName().c_str()).GetProcAddress("ffxFsr2ContextCreate"));
+    return fsr2ContextCreate(context, contextDescription);
+}
+
+typedef FfxErrorCode (*PfnFfxFsr2ContextDestroy)(FfxFsr2Context* context);
+FfxErrorCode ffxFsr2ContextDestroy(FfxFsr2Context* context)
+{
+    static PfnFfxFsr2ContextDestroy fsr2ContextDestroy = reinterpret_cast<PfnFfxFsr2ContextDestroy>(DllLoader::Instance(GetDllName().c_str()).GetProcAddress("ffxFsr2ContextDestroy"));
+    return fsr2ContextDestroy(context);
+}
+
+typedef FfxErrorCode(*PfnFfxFsr2GetJitterOffset)(float* outX, float* outY, int32_t index, int32_t phaseCount);
+FfxErrorCode ffxFsr2GetJitterOffset(float* outX, float* outY, int32_t index, int32_t phaseCount)
+{
+    static PfnFfxFsr2GetJitterOffset fsr2GetJitterOffset = reinterpret_cast<PfnFfxFsr2GetJitterOffset>(DllLoader::Instance(GetDllName().c_str()).GetProcAddress("ffxFsr2GetJitterOffset"));
+    return fsr2GetJitterOffset(outX, outY, index, phaseCount);
+}
+
+typedef int32_t (*PfnFfxFsr2GetJitterPhaseCount)(int32_t renderWidth, int32_t displayWidth);
+int32_t ffxFsr2GetJitterPhaseCount(int32_t renderWidth, int32_t displayWidth)
+{
+    static PfnFfxFsr2GetJitterPhaseCount fsr2GetJitterPhaseCount = reinterpret_cast<PfnFfxFsr2GetJitterPhaseCount>(DllLoader::Instance(GetDllName().c_str()).GetProcAddress("ffxFsr2GetJitterPhaseCount"));
+    return fsr2GetJitterPhaseCount(renderWidth, displayWidth);
+}
+
+typedef FfxErrorCode (*PfnFfxFsr2ContextGenerateReactiveMask)(FfxFsr2Context* context, const FfxFsr2GenerateReactiveDescription* params);
+FfxErrorCode ffxFsr2ContextGenerateReactiveMask(FfxFsr2Context* context, const FfxFsr2GenerateReactiveDescription* params)
+{
+    static PfnFfxFsr2ContextGenerateReactiveMask fsr2ContextGenerateReactiveMask = reinterpret_cast<PfnFfxFsr2ContextGenerateReactiveMask>(DllLoader::Instance(GetDllName().c_str()).GetProcAddress("ffxFsr2ContextGenerateReactiveMask"));
+    return fsr2ContextGenerateReactiveMask(context, params);
+}
+
+typedef FfxErrorCode (*PfnFfxFsr2ContextDispatch)(FfxFsr2Context* context, const FfxFsr2DispatchDescription* dispatchDescription);
+FfxErrorCode ffxFsr2ContextDispatch(FfxFsr2Context* context, const FfxFsr2DispatchDescription* dispatchDescription)
+{
+    static PfnFfxFsr2ContextDispatch fsr2ContextDispatch = reinterpret_cast<PfnFfxFsr2ContextDispatch>(DllLoader::Instance(GetDllName().c_str()).GetProcAddress("ffxFsr2ContextDispatch"));
+    return fsr2ContextDispatch(context, dispatchDescription);
+}
+#endif

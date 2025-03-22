@@ -25,7 +25,7 @@ OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType)
 {
     switch (eventType) {
     case kUnityGfxDeviceEventInitialize:
-        Device::Instance().Init(FSRUnityPlugin::UnityInterfaces);
+        Device::Instance(FSRUnityPlugin::UnityGraphics->GetRenderer()).Init(FSRUnityPlugin::UnityInterfaces);
         break;
     case kUnityGfxDeviceEventShutdown:
         Device::Instance().Destroy();
@@ -41,8 +41,8 @@ extern "C" {
     {
         FSRUnityPlugin::UnityInterfaces = unityInterfaces;
         FSRUnityPlugin::UnityLog = unityInterfaces->Get<IUnityLog>();
-        const auto UnityGraphics = unityInterfaces->Get<IUnityGraphics>();
-        UnityGraphics->RegisterDeviceEventCallback(&OnGraphicsDeviceEvent);
+        FSRUnityPlugin::UnityGraphics = unityInterfaces->Get<IUnityGraphics>();
+        FSRUnityPlugin::UnityGraphics->RegisterDeviceEventCallback(&OnGraphicsDeviceEvent);
         OnGraphicsDeviceEvent(kUnityGfxDeviceEventInitialize);
     }
 

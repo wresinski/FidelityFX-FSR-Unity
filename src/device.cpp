@@ -1,26 +1,41 @@
 #include "device.h"
 
 #include <memory>
+#include <mutex>
 
-#if defined(FSR_BACKEND_DX11)
+#include "fsrunityplugin.h"
+
+#if defined(FSR_BACKEND_DX11) || defined(FSR_BACKEND_ALL)
 #include "device_dx11.h"
-#elif defined(FSR_BACKEND_DX12)
+#endif
+#if defined(FSR_BACKEND_DX12) || defined(FSR_BACKEND_ALL)
 #include "device_dx12.h"
-#else
-#error unsupported FSR2 backend
 #endif
 
 
-Device& Device::Instance()
+Device& Device::Instance(UnityGfxRenderer deviceType)
 {
-#if defined(FSR_BACKEND_DX11)
-    static DeviceDX11 instance;
-#elif defined(FSR_BACKEND_DX12)
-    static DeviceDX12 instance;
-#else
-#error unsupported FSR2 backend
+    static std::unique_ptr<Device> instance = nullptr;
+    static std::mutex criticalSection;
+    std::lock_guard<std::mutex> lock(criticalSection);
+    switch (deviceType) {
+#if defined(FSR_BACKEND_DX11) || defined(FSR_BACKEND_ALL)
+    case kUnityGfxRendererD3D11:
+        instance.reset(new DeviceDX11);
+        break;
 #endif
-    return instance;
+#if defined(FSR_BACKEND_DX12) || defined(FSR_BACKEND_ALL)
+    case kUnityGfxRendererD3D12:
+        instance.reset(new DeviceDX12);
+        break;
+#endif
+    case kUnityGfxRendererNull:
+        break;
+    default:
+        FSR_ERROR("Unsupported backend");
+        break;
+    }
+    return *instance;
 }
 
 bool Device::Init(IUnityInterfaces* unityInterfaces)

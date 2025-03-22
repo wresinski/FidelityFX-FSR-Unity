@@ -5,11 +5,10 @@
 
 #include "fsrunityplugin.h"
 #include "device.h"
+#include "dllloader.h"
 
-#if defined(FSR_BACKEND_DX12)
+#if defined(FSR_BACKEND_DX12) || defined(FSR_BACKEND_ALL)
 #include "dx12/ffx_api_dx12.hpp"
-#else
-#error unsupported fsrapi backend
 #endif
 
 
@@ -24,11 +23,6 @@ FSRAPI& GetFSRInstance(uint32_t id)
     return *instances[id];
 }
 
-FSRAPI::~FSRAPI()
-{
-    Destroy();
-}
-
 ffx::ReturnCode FSRAPI::Init(const InitParam& initParam, uint32_t fsrVersion)
 {
     Destroy();
@@ -38,11 +32,9 @@ ffx::ReturnCode FSRAPI::Init(const InitParam& initParam, uint32_t fsrVersion)
     if (fsrVersion != 0) {
         ffx::QueryDescGetVersions versionQuery{};
         versionQuery.createDescType = FFX_API_CREATE_CONTEXT_DESC_TYPE_UPSCALE;
-#if defined(FSR_BACKEND_DX12)
-        versionQuery.device = Device::Instance().GetNativeDevice();
-#else
-#error unsupported fsrapi backend
-#endif
+        if (Device::Instance().GetDeviceType() == kUnityGfxRendererD3D12) {
+            versionQuery.device = Device::Instance().GetNativeDevice();
+        }
         uint64_t versionCount = 0;
         versionQuery.outputCount = &versionCount;
         ffxQuery(nullptr, &versionQuery.header);
@@ -56,7 +48,7 @@ ffx::ReturnCode FSRAPI::Init(const InitParam& initParam, uint32_t fsrVersion)
         ffxQuery(nullptr, &versionQuery.header);
 
         for (size_t i = 0; i < versionCount; ++i) {
-            if (versionNames[i][0] - '0' == fsrVersion) {
+            if (static_cast<uint32_t>(versionNames[i][0] - '0') == fsrVersion) {
                 versionOverride.versionId = fsrVersionIds[i];
                 break;
             }
@@ -67,11 +59,10 @@ ffx::ReturnCode FSRAPI::Init(const InitParam& initParam, uint32_t fsrVersion)
     }
 
     m_Reset = true;
-#if defined(FSR_BACKEND_DX12)
+#if defined(FSR_BACKEND_DX12) || defined(FSR_BACKEND_ALL)
     ffx::CreateBackendDX12Desc backendDesc{};
     backendDesc.header.type = FFX_API_CREATE_CONTEXT_DESC_TYPE_BACKEND_DX12;
-    backendDesc.device =
-        static_cast<ID3D12Device*>(Device::Instance().GetNativeDevice());
+    backendDesc.device = static_cast<ID3D12Device*>(Device::Instance().GetNativeDevice());
 #else
 #error unsupported fsrapi backend
 #endif
@@ -213,27 +204,81 @@ void FSRAPI::SetTextureID(const TextureName textureName, const UnityTextureID te
 
 FfxApiResource ffxApiGetResource(void* res, uint32_t state, uint32_t additionalUsages)
 {
-#if defined(FSR_BACKEND_DX12)
-    auto getResourceState = [](uint32_t ffxState) {
-        switch (ffxState) {
-        case FFX_API_RESOURCE_STATE_UNORDERED_ACCESS:
-            return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-        case FFX_API_RESOURCE_STATE_COMPUTE_READ:
-            return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-        case FFX_API_RESOURCE_STATE_COPY_SRC:
-            return D3D12_RESOURCE_STATE_COPY_SOURCE;
-        case FFX_API_RESOURCE_STATE_COPY_DEST:
-            return D3D12_RESOURCE_STATE_COPY_DEST;
-        case FFX_API_RESOURCE_STATE_GENERIC_READ:
-            return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_COPY_SOURCE;
-        default:
-            return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-        }
-    };
-    Device::Instance().SetResourceState(res, getResourceState(state));
-
-    return ffxApiGetResourceDX12(static_cast<ID3D12Resource*>(res), state);
-#else
-#error unsupported fsrapi backend
+    UnityGfxRenderer renderer = Device::Instance().GetDeviceType();
+    switch (renderer) {
+#if defined(FSR_BACKEND_DX12) || defined(FSR_BACKEND_ALL)
+    case kUnityGfxRendererD3D12:
+    {
+        auto getResourceState = [](uint32_t ffxState) {
+            switch (ffxState) {
+            case FFX_API_RESOURCE_STATE_UNORDERED_ACCESS:
+                return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+            case FFX_API_RESOURCE_STATE_COMPUTE_READ:
+                return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+            case FFX_API_RESOURCE_STATE_COPY_SRC:
+                return D3D12_RESOURCE_STATE_COPY_SOURCE;
+            case FFX_API_RESOURCE_STATE_COPY_DEST:
+                return D3D12_RESOURCE_STATE_COPY_DEST;
+            case FFX_API_RESOURCE_STATE_GENERIC_READ:
+                return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_COPY_SOURCE;
+            default:
+                return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+            }
+        };
+        Device::Instance().SetResourceState(res, getResourceState(state));
+        return ffxApiGetResourceDX12(static_cast<ID3D12Resource*>(res), state);
+    }
 #endif
+    default:
+        FSR_ERROR("Unsupported fsrapi backend");
+        return FfxApiResource{};
+    }
 }
+
+#if defined(FSR_BACKEND_ALL)
+inline std::wstring GetDllName()
+{
+    UnityGfxRenderer renderer = Device::Instance().GetDeviceType();
+    switch (renderer) {
+    case kUnityGfxRendererD3D12:
+#if defined(_DEBUG)
+        return L"amd_fidelityfx_dx12d.dll";
+#else
+        return L"amd_fidelityfx_dx12.dll";
+#endif
+    default:
+        FSR_ERROR("Unsupported fsrapi backend");
+        return L"";
+    }
+}
+
+ffxReturnCode_t ffxCreateContext(ffxContext* context, ffxCreateContextDescHeader* desc, const ffxAllocationCallbacks* memCb)
+{
+    static PfnFfxCreateContext createContext = reinterpret_cast<PfnFfxCreateContext>(DllLoader::Instance(GetDllName().c_str()).GetProcAddress("ffxCreateContext"));
+    return createContext(context, desc, memCb);
+}
+
+ffxReturnCode_t ffxDestroyContext(ffxContext* context, const ffxAllocationCallbacks* memCb)
+{
+    static PfnFfxDestroyContext destroyContext = reinterpret_cast<PfnFfxDestroyContext>(DllLoader::Instance(GetDllName().c_str()).GetProcAddress("ffxDestroyContext"));
+    return destroyContext(context, memCb);
+}
+
+ffxReturnCode_t ffxConfigure(ffxContext* context, const ffxConfigureDescHeader* desc)
+{
+    static PfnFfxConfigure configure = reinterpret_cast<PfnFfxConfigure>(DllLoader::Instance(GetDllName().c_str()).GetProcAddress("ffxConfigure"));
+    return configure(context, desc);
+}
+
+ffxReturnCode_t ffxQuery(ffxContext* context, ffxQueryDescHeader* desc)
+{
+    static PfnFfxQuery query = reinterpret_cast<PfnFfxQuery>(DllLoader::Instance(GetDllName().c_str()).GetProcAddress("ffxQuery"));
+    return query(context, desc);
+}
+
+ffxReturnCode_t ffxDispatch(ffxContext* context, const ffxDispatchDescHeader* desc)
+{
+    static PfnFfxDispatch dispatch = reinterpret_cast<PfnFfxDispatch>(DllLoader::Instance(GetDllName().c_str()).GetProcAddress("ffxDispatch"));
+    return dispatch(context, desc);
+}
+#endif

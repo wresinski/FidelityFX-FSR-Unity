@@ -16,6 +16,7 @@ private:
     friend class Device;
 
 public:
+    virtual UnityGfxRenderer GetDeviceType() override { return kUnityGfxRendererD3D12; }
     virtual void* GetNativeResource(UnityTextureID textureID) override;
     virtual void SetResourceState(void* res, uint32_t state) override;
     virtual void* GetNativeDevice() override;
