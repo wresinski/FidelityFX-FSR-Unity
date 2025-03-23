@@ -76,6 +76,7 @@ uint32_t DllLoader::Release()
             FSR_ERROR("DLL Release failed");
             return error;
         }
+        m_DLL = NULL;
     }
     return result;
 }

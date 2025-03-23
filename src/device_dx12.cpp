@@ -18,6 +18,7 @@ bool DeviceDX12::InternalInit()
 void DeviceDX12::InternalDestroy()
 {
     Wait();
+    m_pUnityGraphicsD3D12 = nullptr;
     m_pD3D12Device = nullptr;
     m_pD3D12Fence = nullptr;
     for (auto& commandBuffer : m_CommandBufferList) {
