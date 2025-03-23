@@ -14,7 +14,8 @@
 
 size_t GetScratchMemorySize(size_t maxContexts);
 FfxErrorCode GetInterface(void* device, void* scratchBuffer, size_t scratchBuffersize, FfxInterface* ffxInterface, uint32_t maxContexts);
-FfxResource GetResource(FfxFsr3Context* context, void* res, const wchar_t* name = nullptr, FfxResourceStates state = FFX_RESOURCE_STATE_COMPUTE_READ);
+FfxResource GetResource(FfxFsr3Context* context, void* resource, const wchar_t* name = nullptr, FfxResourceStates state = FFX_RESOURCE_STATE_COMPUTE_READ);
+FfxResource GetResourceByID(FfxFsr3Context* context, UnityTextureID textureID, const wchar_t* name = nullptr, FfxResourceStates state = FFX_RESOURCE_STATE_COMPUTE_READ);
 
 FSR3& GetFSRInstance(uint32_t id)
 {
@@ -73,11 +74,11 @@ FfxErrorCode FSR3::GenerateReactiveMask(const GenReactiveParam& genReactiveParam
         FfxFsr3GenerateReactiveDescription genReactiveDesc{};
         genReactiveDesc.commandList = commandList;
         genReactiveDesc.colorOpaqueOnly = GetResource(&m_Context, genReactiveParam.colorOpaqueOnly);
-        //genReactiveDesc.colorOpaqueOnly = GetResource(&m_Context, Device::Instance().GetNativeResource(m_TextureIDs[TextureName::COLOR_OPAQUE_ONLY]));
+        //genReactiveDesc.colorOpaqueOnly = GetResourceByID(&m_Context, m_TextureIDs[TextureName::COLOR_OPAQUE_ONLY]);
         genReactiveDesc.colorPreUpscale = GetResource(&m_Context, genReactiveParam.colorPreUpscale);
-        //genReactiveDesc.colorPreUpscale = GetResource(&m_Context, Device::Instance().GetNativeResource(m_TextureIDs[TextureName::COLOR_PRE_UPSCALE]));
+        //genReactiveDesc.colorPreUpscale = GetResourceByID(&m_Context, m_TextureIDs[TextureName::COLOR_PRE_UPSCALE]);
         genReactiveDesc.outReactive = GetResource(&m_Context, genReactiveParam.outReactive, L"FSR3_InputReactiveMap", FFX_RESOURCE_STATE_UNORDERED_ACCESS);
-        //genReactiveDesc.outReactive = GetResource(&m_Context, Device::Instance().GetNativeResource(m_TextureIDs[TextureName::REACTIVE]), L"FSR3_InputReactiveMap", FFX_RESOURCE_STATE_UNORDERED_ACCESS);
+        //genReactiveDesc.outReactive = GetResourceByID(&m_Context, m_TextureIDs[TextureName::REACTIVE], L"FSR3_InputReactiveMap", FFX_RESOURCE_STATE_UNORDERED_ACCESS);
         genReactiveDesc.renderSize.width = genReactiveParam.renderSizeWidth;
         genReactiveDesc.renderSize.height = genReactiveParam.renderSizeHeight;
         genReactiveDesc.scale = genReactiveParam.scale;
@@ -101,17 +102,17 @@ FfxErrorCode FSR3::Dispatch(const DispatchParam& dispatchParam)
         FfxFsr3DispatchUpscaleDescription dispatchDesc{};
         dispatchDesc.commandList = commandList;
         dispatchDesc.color = GetResource(&m_Context, dispatchParam.color, L"FSR3_InputColor");
-        //dispatchDesc.color = GetResource(&m_Context, Device::Instance().GetNativeResource(m_TextureIDs[TextureName::COLOR]), L"FSR3_InputColor");
+        //dispatchDesc.color = GetResourceByID(&m_Context, m_TextureIDs[TextureName::COLOR], L"FSR3_InputColor");
         dispatchDesc.depth = GetResource(&m_Context, dispatchParam.depth, L"FSR3_InputDepth");
-        //dispatchDesc.depth = GetResource(&m_Context, Device::Instance().GetNativeResource(m_TextureIDs[TextureName::DEPTH]), L"FSR3_InputDepth");
+        //dispatchDesc.depth = GetResourceByID(&m_Context, m_TextureIDs[TextureName::DEPTH], L"FSR3_InputDepth");
         dispatchDesc.motionVectors = GetResource(&m_Context, dispatchParam.motionVectors, L"FSR3_InputMotionVectors");
-        //dispatchDesc.motionVectors = GetResource(&m_Context, Device::Instance().GetNativeResource(m_TextureIDs[TextureName::MOTION_VECTORS]), L"FSR3_InputMotionVectors");
+        //dispatchDesc.motionVectors = GetResourceByID(&m_Context, m_TextureIDs[TextureName::MOTION_VECTORS], L"FSR3_InputMotionVectors");
         dispatchDesc.reactive = GetResource(&m_Context, dispatchParam.reactive, L"FSR3_InputReactiveMap");
-        //dispatchDesc.reactive = GetResource(&m_Context, Device::Instance().GetNativeResource(m_TextureIDs[TextureName::REACTIVE]), L"FSR3_InputReactiveMap");
+        //dispatchDesc.reactive = GetResourceByID(&m_Context, m_TextureIDs[TextureName::REACTIVE], L"FSR3_InputReactiveMap");
         dispatchDesc.transparencyAndComposition = GetResource(&m_Context, dispatchParam.transparencyAndComposition, L"FSR3_TransparencyAndCompositionMap");
-        //dispatchDesc.transparencyAndComposition = GetResource(&m_Context, Device::Instance().GetNativeResource(m_TextureIDs[TextureName::TRANSPARENT_AND_COMPOSITION]), L"FSR3_TransparencyAndCompositionMap");
+        //dispatchDesc.transparencyAndComposition = GetResourceByID(&m_Context, m_TextureIDs[TextureName::TRANSPARENT_AND_COMPOSITION], L"FSR3_TransparencyAndCompositionMap");
         dispatchDesc.upscaleOutput = GetResource(&m_Context, dispatchParam.output, L"FSR3_OutputUpscaledColor", FFX_RESOURCE_STATE_UNORDERED_ACCESS);
-        //dispatchDesc.upscaleOutput = GetResource(&m_Context, Device::Instance().GetNativeResource(m_TextureIDs[TextureName::OUTPUT]), L"FSR3_OutputUpscaledColor", FFX_RESOURCE_STATE_UNORDERED_ACCESS);
+        //dispatchDesc.upscaleOutput = GetResourceByID(&m_Context, m_TextureIDs[TextureName::OUTPUT], L"FSR3_OutputUpscaledColor", FFX_RESOURCE_STATE_UNORDERED_ACCESS);
         dispatchDesc.jitterOffset.x = dispatchParam.jitterOffsetX;
         dispatchDesc.jitterOffset.y = dispatchParam.jitterOffsetY;
         dispatchDesc.motionVectorScale.x = dispatchParam.motionVectorScaleX;
@@ -172,7 +173,7 @@ FfxErrorCode GetInterface(void* device, void* scratchBuffer, size_t scratchBuffe
     }
 }
 
-FfxResource GetResource(FfxFsr3Context* context, void* res, const wchar_t* name, FfxResourceStates state)
+FfxResource GetResource(FfxFsr3Context* context, void* resource, const wchar_t* name, FfxResourceStates state)
 {
     UnityGfxRenderer renderer = Device::Instance().GetDeviceType();
     switch (renderer) {
@@ -195,8 +196,41 @@ FfxResource GetResource(FfxFsr3Context* context, void* res, const wchar_t* name,
                 return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
             }
         };
-        Device::Instance().SetResourceState(res, getResourceState(state));
-        return ffxGetResourceDX12(static_cast<ID3D12Resource*>(res), GetFfxResourceDescriptionDX12(static_cast<ID3D12Resource*>(res)), const_cast<wchar_t*>(name), state);
+        void* nativeResource = Device::Instance().GetNativeResource(resource, nullptr, getResourceState(state));
+        return ffxGetResourceDX12(static_cast<ID3D12Resource*>(nativeResource), GetFfxResourceDescriptionDX12(static_cast<ID3D12Resource*>(nativeResource)), const_cast<wchar_t*>(name), state);
+    }
+#endif
+    default:
+        FSR_ERROR("Unsupported fsr3 backend");
+        return FfxResource{};
+    }
+}
+
+FfxResource GetResourceByID(FfxFsr3Context* context, UnityTextureID textureID, const wchar_t* name, FfxResourceStates state)
+{
+    UnityGfxRenderer renderer = Device::Instance().GetDeviceType();
+    switch (renderer) {
+#if defined(FSR_BACKEND_DX12) || defined(FSR_BACKEND_ALL)
+    case kUnityGfxRendererD3D12:
+    {
+        auto getResourceState = [](uint32_t ffxState) {
+            switch (ffxState) {
+            case FFX_RESOURCE_STATE_UNORDERED_ACCESS:
+                return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+            case FFX_RESOURCE_STATE_COMPUTE_READ:
+                return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+            case FFX_RESOURCE_STATE_COPY_SRC:
+                return D3D12_RESOURCE_STATE_COPY_SOURCE;
+            case FFX_RESOURCE_STATE_COPY_DEST:
+                return D3D12_RESOURCE_STATE_COPY_DEST;
+            case FFX_RESOURCE_STATE_GENERIC_READ:
+                return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_COPY_SOURCE;
+            default:
+                return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+            }
+        };
+        void* nativeResource = Device::Instance().GetNativeResourceByID(textureID, nullptr, getResourceState(state));
+        return ffxGetResourceDX12(static_cast<ID3D12Resource*>(nativeResource), GetFfxResourceDescriptionDX12(static_cast<ID3D12Resource*>(nativeResource)), const_cast<wchar_t*>(name), state);
     }
 #endif
     default:
@@ -238,63 +272,63 @@ size_t ffxGetScratchMemorySizeDX12(size_t maxContexts)
     return getScratchMemorySizeDX12(maxContexts);
 }
 
-typedef FfxErrorCode (*PfnFfxGetInterfaceDX12)(FfxInterface* backendInterface, FfxDevice device, void* scratchBuffer, size_t scratchBufferSize, uint32_t maxContexts);
+typedef FfxErrorCode(*PfnFfxGetInterfaceDX12)(FfxInterface* backendInterface, FfxDevice device, void* scratchBuffer, size_t scratchBufferSize, uint32_t maxContexts);
 FfxErrorCode ffxGetInterfaceDX12(FfxInterface* backendInterface, FfxDevice device, void* scratchBuffer, size_t scratchBufferSize, uint32_t maxContexts)
 {
     static PfnFfxGetInterfaceDX12 getInterfaceDX12 = reinterpret_cast<PfnFfxGetInterfaceDX12>(DllLoader::Instance(GetDllNameBackend().c_str()).GetProcAddress("ffxGetInterfaceDX12"));
     return getInterfaceDX12(backendInterface, device, scratchBuffer, scratchBufferSize, maxContexts);
 }
 
-typedef FfxResource (*PfnFfxGetResourceDX12)(const ID3D12Resource* dx12Resource, FfxResourceDescription ffxResDescription, wchar_t* ffxResName, FfxResourceStates state);
+typedef FfxResource(*PfnFfxGetResourceDX12)(const ID3D12Resource* dx12Resource, FfxResourceDescription ffxResDescription, wchar_t* ffxResName, FfxResourceStates state);
 FfxResource ffxGetResourceDX12(const ID3D12Resource* dx12Resource, FfxResourceDescription ffxResDescription, wchar_t* ffxResName, FfxResourceStates state)
 {
     static PfnFfxGetResourceDX12 getResourceDX12 = reinterpret_cast<PfnFfxGetResourceDX12>(DllLoader::Instance(GetDllNameBackend().c_str()).GetProcAddress("ffxGetResourceDX12"));
     return getResourceDX12(dx12Resource, ffxResDescription, ffxResName, state);
 }
 
-typedef FfxResourceDescription (*PfnGetFfxResourceDescriptionDX12)(ID3D12Resource* pResource);
+typedef FfxResourceDescription(*PfnGetFfxResourceDescriptionDX12)(ID3D12Resource* pResource);
 FfxResourceDescription GetFfxResourceDescriptionDX12(ID3D12Resource* pResource)
 {
     static PfnGetFfxResourceDescriptionDX12 getFfxResourceDescriptionDX12 = reinterpret_cast<PfnGetFfxResourceDescriptionDX12>(DllLoader::Instance(GetDllNameBackend().c_str()).GetProcAddress("GetFfxResourceDescriptionDX12"));
     return getFfxResourceDescriptionDX12(pResource);
 }
 
-typedef FfxErrorCode (*PfnFfxFsr3ContextCreate)(FfxFsr3Context* context, FfxFsr3ContextDescription* contextDescription);
+typedef FfxErrorCode(*PfnFfxFsr3ContextCreate)(FfxFsr3Context* context, FfxFsr3ContextDescription* contextDescription);
 FfxErrorCode ffxFsr3ContextCreate(FfxFsr3Context* context, FfxFsr3ContextDescription* contextDescription)
 {
     static PfnFfxFsr3ContextCreate fsr3ContextCreate = reinterpret_cast<PfnFfxFsr3ContextCreate>(DllLoader::Instance(GetDllName().c_str()).GetProcAddress("ffxFsr3ContextCreate"));
     return fsr3ContextCreate(context, contextDescription);
 }
 
-typedef FfxErrorCode (*PfnFfxFsr3ContextDestroy)(FfxFsr3Context* context);
+typedef FfxErrorCode(*PfnFfxFsr3ContextDestroy)(FfxFsr3Context* context);
 FfxErrorCode ffxFsr3ContextDestroy(FfxFsr3Context* context)
 {
     static PfnFfxFsr3ContextDestroy fsr3ContextDestroy = reinterpret_cast<PfnFfxFsr3ContextDestroy>(DllLoader::Instance(GetDllName().c_str()).GetProcAddress("ffxFsr3ContextDestroy"));
     return fsr3ContextDestroy(context);
 }
 
-typedef FfxErrorCode (*PfnFfxFsr3GetJitterOffset)(float* outX, float* outY, int32_t index, int32_t phaseCount);
+typedef FfxErrorCode(*PfnFfxFsr3GetJitterOffset)(float* outX, float* outY, int32_t index, int32_t phaseCount);
 FfxErrorCode ffxFsr3GetJitterOffset(float* outX, float* outY, int32_t index, int32_t phaseCount)
 {
     static PfnFfxFsr3GetJitterOffset fsr3GetJitterOffset = reinterpret_cast<PfnFfxFsr3GetJitterOffset>(DllLoader::Instance(GetDllName().c_str()).GetProcAddress("ffxFsr3GetJitterOffset"));
     return fsr3GetJitterOffset(outX, outY, index, phaseCount);
 }
 
-typedef int32_t (*PfnFfxFsr3GetJitterPhaseCount)(int32_t renderWidth, int32_t displayWidth);
+typedef int32_t(*PfnFfxFsr3GetJitterPhaseCount)(int32_t renderWidth, int32_t displayWidth);
 int32_t ffxFsr3GetJitterPhaseCount(int32_t renderWidth, int32_t displayWidth)
 {
     static PfnFfxFsr3GetJitterPhaseCount fsr3GetJitterPhaseCount = reinterpret_cast<PfnFfxFsr3GetJitterPhaseCount>(DllLoader::Instance(GetDllName().c_str()).GetProcAddress("ffxFsr3GetJitterPhaseCount"));
     return fsr3GetJitterPhaseCount(renderWidth, displayWidth);
 }
 
-typedef FfxErrorCode (*PfnFfxFsr3ContextGenerateReactiveMask)(FfxFsr3Context* context, const FfxFsr3GenerateReactiveDescription* params);
+typedef FfxErrorCode(*PfnFfxFsr3ContextGenerateReactiveMask)(FfxFsr3Context* context, const FfxFsr3GenerateReactiveDescription* params);
 FfxErrorCode ffxFsr3ContextGenerateReactiveMask(FfxFsr3Context* context, const FfxFsr3GenerateReactiveDescription* params)
 {
     static PfnFfxFsr3ContextGenerateReactiveMask fsr3ContextGenerateReactiveMask = reinterpret_cast<PfnFfxFsr3ContextGenerateReactiveMask>(DllLoader::Instance(GetDllName().c_str()).GetProcAddress("ffxFsr3ContextGenerateReactiveMask"));
     return fsr3ContextGenerateReactiveMask(context, params);
 }
 
-typedef FfxErrorCode (*PfnFfxFsr3ContextDispatchUpscale)(FfxFsr3Context* context, const FfxFsr3DispatchUpscaleDescription* dispatchParams);
+typedef FfxErrorCode(*PfnFfxFsr3ContextDispatchUpscale)(FfxFsr3Context* context, const FfxFsr3DispatchUpscaleDescription* dispatchParams);
 FfxErrorCode ffxFsr3ContextDispatchUpscale(FfxFsr3Context* context, const FfxFsr3DispatchUpscaleDescription* dispatchParams)
 {
     static PfnFfxFsr3ContextDispatchUpscale fsr3ContextDispatchUpscale = reinterpret_cast<PfnFfxFsr3ContextDispatchUpscale>(DllLoader::Instance(GetDllName().c_str()).GetProcAddress("ffxFsr3ContextDispatchUpscale"));

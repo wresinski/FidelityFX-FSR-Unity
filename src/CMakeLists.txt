@@ -43,10 +43,13 @@ $CACHE{FFX_FSR_API_LIB_DIR}
 set(FSR_BACKEND_DEF)
 if(FSR_BACKEND STREQUAL "dx11")
 	set(FSR_BACKEND_DEF "FSR_BACKEND_DX11")
+	target_link_libraries(${FSR_UNITY_PLUGIN} PRIVATE dxguid)
 elseif(FSR_BACKEND STREQUAL "dx12")
 	set(FSR_BACKEND_DEF "FSR_BACKEND_DX12")
+	target_link_libraries(${FSR_UNITY_PLUGIN} PRIVATE dxguid)
 elseif(FSR_BACKEND STREQUAL "all")
 	set(FSR_BACKEND_DEF "FSR_BACKEND_ALL")
+	target_link_libraries(${FSR_UNITY_PLUGIN} PRIVATE dxguid)
 else()
 	message(FATAL_ERROR "Unsupported FSR backend, must be one of: [dx11, dx12, all]")
 endif()
@@ -95,10 +98,6 @@ elseif(FSR_VERSION STREQUAL "fsrapi")
 else()
 	message(FATAL_ERROR "Unsupported FSR version")
 endif()
-
-target_link_libraries(${FSR_UNITY_PLUGIN} PRIVATE
-dxguid
-)
 
 target_compile_definitions(${FSR_UNITY_PLUGIN} PRIVATE
 ${FSR_BACKEND_DEF} ${FSR_VERSION_DEF}

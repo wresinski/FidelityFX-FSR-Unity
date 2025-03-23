@@ -17,8 +17,9 @@ private:
 
 public:
     virtual UnityGfxRenderer GetDeviceType() override { return kUnityGfxRendererD3D12; }
-    virtual void* GetNativeResource(UnityTextureID textureID) override;
-    virtual void SetResourceState(void* res, uint32_t state) override;
+    virtual void* GetGraphicsInterfaces() { return m_pUnityGraphicsD3D12; }
+    virtual void* GetNativeResource(void* resource, void* desc = nullptr, uint32_t state = 0, bool observeOnly = true) override;
+    virtual void* GetNativeResourceByID(UnityTextureID textureID, void* desc = nullptr, uint32_t state = 0, bool observeOnly = true) override;
     virtual void* GetNativeDevice() override;
     virtual void* GetNativeCommandList() override;
     virtual void ExecuteCommandList(void* commandList) override;
@@ -29,6 +30,8 @@ private:
     virtual void InternalDestroy() override;
 
 private:
+    IUnityGraphicsD3D12v7* m_pUnityGraphicsD3D12 = nullptr;
+
     ID3D12Device* m_pD3D12Device = nullptr;
     ID3D12Fence* m_pD3D12Fence = nullptr;
 

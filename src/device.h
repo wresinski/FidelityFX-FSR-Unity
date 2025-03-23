@@ -25,8 +25,9 @@ public:
     bool Init(IUnityInterfaces* unityInterfaces);
     void Destroy();
     virtual UnityGfxRenderer GetDeviceType() = 0;
-    virtual void* GetNativeResource(UnityTextureID textureID) = 0;
-    virtual void SetResourceState(void* res, uint32_t state) {}
+    virtual void* GetGraphicsInterfaces() = 0;
+    virtual void* GetNativeResource(void* resource, void* desc = nullptr, uint32_t state = 0, bool observeOnly = true) = 0;
+    virtual void* GetNativeResourceByID(UnityTextureID textureID, void* desc = nullptr, uint32_t state = 0, bool observeOnly = true) = 0;
     virtual void* GetNativeDevice() = 0;
     virtual void* GetNativeCommandList() = 0;
     virtual void ExecuteCommandList(void* commandList) {}

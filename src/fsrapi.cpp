@@ -12,7 +12,8 @@
 #endif
 
 
-FfxApiResource ffxApiGetResource(void* res, uint32_t state = FFX_API_RESOURCE_STATE_COMPUTE_READ, uint32_t additionalUsages = 0);
+FfxApiResource ffxApiGetResource(void* resource, uint32_t state = FFX_API_RESOURCE_STATE_COMPUTE_READ, uint32_t additionalUsages = 0);
+FfxApiResource ffxApiGetResourceByID(UnityTextureID textureID, uint32_t state = FFX_API_RESOURCE_STATE_COMPUTE_READ, uint32_t additionalUsages = 0);
 
 FSRAPI& GetFSRInstance(uint32_t id)
 {
@@ -65,7 +66,7 @@ ffx::ReturnCode FSRAPI::Init(const InitParam& initParam, uint32_t fsrVersion)
     createFsr.maxRenderSize = {initParam.displaySizeWidth, initParam.displaySizeHeight};
     createFsr.flags = initParam.flags;
 
-    ffx::ReturnCode retCode;
+    ffx::ReturnCode retCode = ffx::ReturnCode::Error;
     UnityGfxRenderer renderer = Device::Instance().GetDeviceType();
     switch (renderer) {
 #if defined(FSR_BACKEND_DX12) || defined(FSR_BACKEND_ALL)
@@ -86,6 +87,7 @@ ffx::ReturnCode FSRAPI::Init(const InitParam& initParam, uint32_t fsrVersion)
         FSR_ERROR("Unsupported fsrapi backend");
         break;
     }
+
     if (retCode == ffx::ReturnCode::Ok) {
         m_ContextCreated = true;
     } else {
@@ -137,11 +139,11 @@ ffx::ReturnCode FSRAPI::GenerateReactiveMask(const GenReactiveParam& genReactive
         ffx::DispatchDescUpscaleGenerateReactiveMask genReactiveDesc{};
         genReactiveDesc.commandList = commandList;
         genReactiveDesc.colorOpaqueOnly = ffxApiGetResource(genReactiveParam.colorOpaqueOnly);
-        //genReactiveDesc.colorOpaqueOnly = ffxApiGetResource(Device::Instance().GetNativeResource(m_TextureIDs[TextureName::COLOR_OPAQUE_ONLY]));
+        //genReactiveDesc.colorOpaqueOnly = ffxApiGetResourceByID(m_TextureIDs[TextureName::COLOR_OPAQUE_ONLY]);
         genReactiveDesc.colorPreUpscale = ffxApiGetResource(genReactiveParam.colorPreUpscale);
-        //genReactiveDesc.colorPreUpscale = ffxApiGetResource(Device::Instance().GetNativeResource(m_TextureIDs[TextureName::COLOR_PRE_UPSCALE]));
+        //genReactiveDesc.colorPreUpscale = ffxApiGetResourceByID(m_TextureIDs[TextureName::COLOR_PRE_UPSCALE]);
         genReactiveDesc.outReactive = ffxApiGetResource(genReactiveParam.outReactive, FFX_API_RESOURCE_STATE_UNORDERED_ACCESS);
-        //genReactiveDesc.outReactive = ffxApiGetResource(Device::Instance().GetNativeResource(m_TextureIDs[TextureName::REACTIVE]), FFX_API_RESOURCE_STATE_UNORDERED_ACCESS);
+        //genReactiveDesc.outReactive = ffxApiGetResourceByID(m_TextureIDs[TextureName::REACTIVE], FFX_API_RESOURCE_STATE_UNORDERED_ACCESS);
         genReactiveDesc.renderSize.width = genReactiveParam.renderSizeWidth;
         genReactiveDesc.renderSize.height = genReactiveParam.renderSizeHeight;
         genReactiveDesc.scale = genReactiveParam.scale;
@@ -166,17 +168,17 @@ ffx::ReturnCode FSRAPI::Dispatch(const DispatchParam& dispatchParam)
         ffx::DispatchDescUpscale dispatchDesc{};
         dispatchDesc.commandList = commandList;
         dispatchDesc.color = ffxApiGetResource(dispatchParam.color);
-        //dispatchDesc.color = ffxApiGetResource(Device::Instance().GetNativeResource(m_TextureIDs[TextureName::COLOR]));
+        //dispatchDesc.color = ffxApiGetResourceByID(m_TextureIDs[TextureName::COLOR]);
         dispatchDesc.depth = ffxApiGetResource(dispatchParam.depth);
-        //dispatchDesc.depth = ffxApiGetResource(Device::Instance().GetNativeResource(m_TextureIDs[TextureName::DEPTH]));
+        //dispatchDesc.depth = ffxApiGetResourceByID(m_TextureIDs[TextureName::DEPTH]);
         dispatchDesc.motionVectors = ffxApiGetResource(dispatchParam.motionVectors);
-        //dispatchDesc.motionVectors = ffxApiGetResource(Device::Instance().GetNativeResource(m_TextureIDs[TextureName::MOTION_VECTORS]));
+        //dispatchDesc.motionVectors = ffxApiGetResourceByID(m_TextureIDs[TextureName::MOTION_VECTORS]);
         dispatchDesc.reactive = ffxApiGetResource(dispatchParam.reactive);
-        //dispatchDesc.reactive = ffxApiGetResource(Device::Instance().GetNativeResource(m_TextureIDs[TextureName::REACTIVE]));
+        //dispatchDesc.reactive = ffxApiGetResourceByID(m_TextureIDs[TextureName::REACTIVE]);
         dispatchDesc.transparencyAndComposition = ffxApiGetResource(dispatchParam.transparencyAndComposition);
-        //dispatchDesc.transparencyAndComposition = ffxApiGetResource(Device::Instance().GetNativeResource(m_TextureIDs[TextureName::TRANSPARENT_AND_COMPOSITION]));
+        //dispatchDesc.transparencyAndComposition = ffxApiGetResourceByID(m_TextureIDs[TextureName::TRANSPARENT_AND_COMPOSITION]);
         dispatchDesc.output = ffxApiGetResource(dispatchParam.output, FFX_API_RESOURCE_STATE_UNORDERED_ACCESS);
-        //dispatchDesc.output = ffxApiGetResource(Device::Instance().GetNativeResource(m_TextureIDs[TextureName::OUTPUT]), FFX_API_RESOURCE_STATE_UNORDERED_ACCESS);
+        //dispatchDesc.output = ffxApiGetResourceByID(m_TextureIDs[TextureName::OUTPUT], FFX_API_RESOURCE_STATE_UNORDERED_ACCESS);
         dispatchDesc.jitterOffset.x = dispatchParam.jitterOffsetX;
         dispatchDesc.jitterOffset.y = dispatchParam.jitterOffsetY;
         dispatchDesc.motionVectorScale.x = dispatchParam.motionVectorScaleX;
@@ -211,7 +213,7 @@ void FSRAPI::SetTextureID(const TextureName textureName, const UnityTextureID te
     }
 }
 
-FfxApiResource ffxApiGetResource(void* res, uint32_t state, uint32_t additionalUsages)
+FfxApiResource ffxApiGetResource(void* resource, uint32_t state, uint32_t additionalUsages)
 {
     UnityGfxRenderer renderer = Device::Instance().GetDeviceType();
     switch (renderer) {
@@ -234,8 +236,41 @@ FfxApiResource ffxApiGetResource(void* res, uint32_t state, uint32_t additionalU
                 return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
             }
         };
-        Device::Instance().SetResourceState(res, getResourceState(state));
-        return ffxApiGetResourceDX12(static_cast<ID3D12Resource*>(res), state);
+        void* nativeResource = Device::Instance().GetNativeResource(resource, nullptr, getResourceState(state));
+        return ffxApiGetResourceDX12(static_cast<ID3D12Resource*>(nativeResource), state);
+    }
+#endif
+    default:
+        FSR_ERROR("Unsupported fsrapi backend");
+        return FfxApiResource{};
+    }
+}
+
+FfxApiResource ffxApiGetResourceByID(UnityTextureID textureID, uint32_t state, uint32_t additionalUsages)
+{
+    UnityGfxRenderer renderer = Device::Instance().GetDeviceType();
+    switch (renderer) {
+#if defined(FSR_BACKEND_DX12) || defined(FSR_BACKEND_ALL)
+    case kUnityGfxRendererD3D12:
+    {
+        auto getResourceState = [](uint32_t ffxState) {
+            switch (ffxState) {
+            case FFX_API_RESOURCE_STATE_UNORDERED_ACCESS:
+                return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+            case FFX_API_RESOURCE_STATE_COMPUTE_READ:
+                return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+            case FFX_API_RESOURCE_STATE_COPY_SRC:
+                return D3D12_RESOURCE_STATE_COPY_SOURCE;
+            case FFX_API_RESOURCE_STATE_COPY_DEST:
+                return D3D12_RESOURCE_STATE_COPY_DEST;
+            case FFX_API_RESOURCE_STATE_GENERIC_READ:
+                return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_COPY_SOURCE;
+            default:
+                return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+            }
+        };
+        void* nativeResource = Device::Instance().GetNativeResourceByID(textureID, nullptr, getResourceState(state));
+        return ffxApiGetResourceDX12(static_cast<ID3D12Resource*>(nativeResource), state);
     }
 #endif
     default:

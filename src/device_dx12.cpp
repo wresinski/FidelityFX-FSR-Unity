@@ -6,10 +6,10 @@
 bool DeviceDX12::InternalInit()
 {
     if (m_pUnityInterfaces != nullptr) {
-        const auto unityGraphicsD3D12 = m_pUnityInterfaces->Get<IUnityGraphicsD3D12v7>();
-        if (unityGraphicsD3D12 != nullptr) {
-            m_pD3D12Device = unityGraphicsD3D12->GetDevice();
-            m_pD3D12Fence = unityGraphicsD3D12->GetFrameFence();
+        m_pUnityGraphicsD3D12 = m_pUnityInterfaces->Get<IUnityGraphicsD3D12v7>();
+        if (m_pUnityGraphicsD3D12 != nullptr) {
+            m_pD3D12Device = m_pUnityGraphicsD3D12->GetDevice();
+            m_pD3D12Fence = m_pUnityGraphicsD3D12->GetFrameFence();
         }
     }
     return m_pD3D12Device != nullptr;
@@ -26,23 +26,34 @@ void DeviceDX12::InternalDestroy()
     }
 }
 
-void* DeviceDX12::GetNativeResource(UnityTextureID textureID)
+void* DeviceDX12::GetNativeResource(void* resource, void* desc, uint32_t state, bool observeOnly)
 {
-    ID3D12Resource* resource = nullptr;
-    if (m_pUnityInterfaces != nullptr) {
-        const auto unityGraphicsD3D12 = m_pUnityInterfaces->Get<IUnityGraphicsD3D12v7>();
-        if (unityGraphicsD3D12 != nullptr) {
-            resource = unityGraphicsD3D12->TextureFromNativeTexture(textureID);
-        }
+    if (resource && desc) {
+        *static_cast<D3D12_RESOURCE_DESC*>(desc) = static_cast<ID3D12Resource*>(resource)->GetDesc();
+    }
+    if (resource) {
+        m_ResourceState.push_back(UnityGraphicsD3D12ResourceState{static_cast<ID3D12Resource*>(resource),
+            static_cast<D3D12_RESOURCE_STATES>(state),
+            static_cast<D3D12_RESOURCE_STATES>(state)});
     }
     return resource;
 }
 
-void DeviceDX12::SetResourceState(void* res, uint32_t state)
+void* DeviceDX12::GetNativeResourceByID(UnityTextureID textureID, void* desc, uint32_t state, bool observeOnly)
 {
-    m_ResourceState.push_back(UnityGraphicsD3D12ResourceState{static_cast<ID3D12Resource*>(res),
-        static_cast<D3D12_RESOURCE_STATES>(state),
-        static_cast<D3D12_RESOURCE_STATES>(state)});
+    ID3D12Resource* resource = nullptr;
+    if (m_pUnityGraphicsD3D12 != nullptr) {
+        resource = m_pUnityGraphicsD3D12->TextureFromNativeTexture(textureID);
+    }
+    if (resource && desc) {
+        *static_cast<D3D12_RESOURCE_DESC*>(desc) = static_cast<ID3D12Resource*>(resource)->GetDesc();
+    }
+    if (resource) {
+        m_ResourceState.push_back(UnityGraphicsD3D12ResourceState{static_cast<ID3D12Resource*>(resource),
+            static_cast<D3D12_RESOURCE_STATES>(state),
+            static_cast<D3D12_RESOURCE_STATES>(state)});
+    }
+    return resource;
 }
 
 void* DeviceDX12::GetNativeDevice()
@@ -59,6 +70,7 @@ void* DeviceDX12::GetNativeCommandList()
             if (m_pD3D12Fence->GetCompletedValue() >= commandBuffer.fenceValue) {
                 d3d12CommandAllocator = commandBuffer.d3d12CommandAllocator;
                 d3d12CommandList = commandBuffer.d3d12CommandList;
+                commandBuffer.fenceValue = (std::numeric_limits<uint64_t>::max)();
                 break;
             }
         }
@@ -83,7 +95,7 @@ void* DeviceDX12::GetNativeCommandList()
             if (FAILED(hr)) {
                 FSR_ERROR("Failed to create command list!");
             }
-            m_CommandBufferList.push_back(CommandBuffer{d3d12CommandAllocator, d3d12CommandList, 0});
+            m_CommandBufferList.push_back(CommandBuffer{d3d12CommandAllocator, d3d12CommandList, (std::numeric_limits<uint64_t>::max)()});
         }
     }
     return d3d12CommandList;
@@ -92,16 +104,13 @@ void* DeviceDX12::GetNativeCommandList()
 void DeviceDX12::ExecuteCommandList(void* commandList)
 {
     static_cast<ID3D12GraphicsCommandList2*>(commandList)->Close();
-    if (m_pUnityInterfaces != nullptr) {
-        const auto unityGraphicsD3D12 = m_pUnityInterfaces->Get<IUnityGraphicsD3D12v7>();
-        if (unityGraphicsD3D12 != nullptr) {
-            //unityGraphicsD3D12->GetCommandQueue()->ExecuteCommandLists(1, reinterpret_cast<ID3D12CommandList* const*>(&commandList));
-            uint64_t fenceValue = unityGraphicsD3D12->ExecuteCommandList(static_cast<ID3D12GraphicsCommandList*>(commandList), static_cast<int>(m_ResourceState.size()), m_ResourceState.data());
-            for (auto& commandBuffer : m_CommandBufferList) {
-                if (commandList == commandBuffer.d3d12CommandList) {
-                    commandBuffer.fenceValue = fenceValue;
-                    break;
-                }
+    if (m_pUnityGraphicsD3D12 != nullptr) {
+        //m_pUnityGraphicsD3D12->GetCommandQueue()->ExecuteCommandLists(1, reinterpret_cast<ID3D12CommandList* const*>(&commandList));
+        uint64_t fenceValue = m_pUnityGraphicsD3D12->ExecuteCommandList(static_cast<ID3D12GraphicsCommandList*>(commandList), static_cast<int>(m_ResourceState.size()), m_ResourceState.data());
+        for (auto& commandBuffer : m_CommandBufferList) {
+            if (commandList == commandBuffer.d3d12CommandList) {
+                commandBuffer.fenceValue = fenceValue;
+                break;
             }
         }
     }
