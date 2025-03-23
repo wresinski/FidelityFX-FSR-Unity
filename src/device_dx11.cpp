@@ -18,9 +18,9 @@ bool DeviceDX11::InternalInit()
 
 void DeviceDX11::InternalDestroy()
 {
-    m_pUnityGraphicsD3D11 = nullptr;
-    m_pD3D11Device = nullptr;
     m_pD3D11DeviceContext->Release();
+    m_pD3D11Device = nullptr;
+    m_pUnityGraphicsD3D11 = nullptr;
 }
 
 void* DeviceDX11::GetNativeResource(void* resource, void* desc, uint32_t state, bool observeOnly)

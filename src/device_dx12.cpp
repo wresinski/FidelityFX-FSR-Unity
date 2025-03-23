@@ -18,13 +18,13 @@ bool DeviceDX12::InternalInit()
 void DeviceDX12::InternalDestroy()
 {
     Wait();
-    m_pUnityGraphicsD3D12 = nullptr;
-    m_pD3D12Device = nullptr;
-    m_pD3D12Fence = nullptr;
     for (auto& commandBuffer : m_CommandBufferList) {
         commandBuffer.d3d12CommandAllocator->Release();
         commandBuffer.d3d12CommandList->Release();
     }
+    m_pD3D12Device = nullptr;
+    m_pD3D12Fence = nullptr;
+    m_pUnityGraphicsD3D12 = nullptr;
 }
 
 void* DeviceDX12::GetNativeResource(void* resource, void* desc, uint32_t state, bool observeOnly)
