@@ -114,6 +114,7 @@ void DeviceDX12::ExecuteCommandList(void* commandList)
                 break;
             }
         }
+        m_ResourceState.clear();
     }
 }
 
