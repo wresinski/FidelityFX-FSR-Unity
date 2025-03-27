@@ -51,6 +51,11 @@ extern "C" {
         FSRUnityPlugin::UnityGraphics->UnregisterDeviceEventCallback(&OnGraphicsDeviceEvent);
     }
 
+    bool UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API FSRQuery(uint32_t fsrVersion)
+    {
+        return GetFSRInstance(0).Query(fsrVersion) != 0;
+    }
+
     uint32_t UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API FSRInit(
         uint32_t instanceID,
         const InitParam* initParam,

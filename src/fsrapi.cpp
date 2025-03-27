@@ -24,6 +24,35 @@ FSRAPI& GetFSRInstance(uint32_t id)
     return *instances[id];
 }
 
+uint64_t FSRAPI::Query(uint32_t fsrVersion)
+{
+    uint64_t versionId = 0;
+    ffx::QueryDescGetVersions versionQuery{};
+    versionQuery.createDescType = FFX_API_CREATE_CONTEXT_DESC_TYPE_UPSCALE;
+    if (Device::Instance().GetDeviceType() == kUnityGfxRendererD3D12) {
+        versionQuery.device = Device::Instance().GetNativeDevice();
+    }
+    uint64_t versionCount = 0;
+    versionQuery.outputCount = &versionCount;
+    ffxQuery(nullptr, &versionQuery.header);
+
+    std::vector<const char*> versionNames;
+    std::vector<uint64_t> fsrVersionIds;
+    fsrVersionIds.resize(versionCount);
+    versionNames.resize(versionCount);
+    versionQuery.versionIds = fsrVersionIds.data();
+    versionQuery.versionNames = versionNames.data();
+    ffxQuery(nullptr, &versionQuery.header);
+
+    for (size_t i = 0; i < versionCount; ++i) {
+        if (static_cast<uint32_t>(versionNames[i][0] - '0') == fsrVersion) {
+            versionId = fsrVersionIds[i];
+            break;
+        }
+    }
+    return versionId;
+}
+
 ffx::ReturnCode FSRAPI::Init(const InitParam& initParam, uint32_t fsrVersion)
 {
     Destroy();
@@ -31,29 +60,7 @@ ffx::ReturnCode FSRAPI::Init(const InitParam& initParam, uint32_t fsrVersion)
     // get version info from ffxapi
     ffx::CreateContextDescOverrideVersion versionOverride{};
     if (fsrVersion != 0) {
-        ffx::QueryDescGetVersions versionQuery{};
-        versionQuery.createDescType = FFX_API_CREATE_CONTEXT_DESC_TYPE_UPSCALE;
-        if (Device::Instance().GetDeviceType() == kUnityGfxRendererD3D12) {
-            versionQuery.device = Device::Instance().GetNativeDevice();
-        }
-        uint64_t versionCount = 0;
-        versionQuery.outputCount = &versionCount;
-        ffxQuery(nullptr, &versionQuery.header);
-
-        std::vector<const char*> versionNames;
-        std::vector<uint64_t> fsrVersionIds;
-        fsrVersionIds.resize(versionCount);
-        versionNames.resize(versionCount);
-        versionQuery.versionIds = fsrVersionIds.data();
-        versionQuery.versionNames = versionNames.data();
-        ffxQuery(nullptr, &versionQuery.header);
-
-        for (size_t i = 0; i < versionCount; ++i) {
-            if (static_cast<uint32_t>(versionNames[i][0] - '0') == fsrVersion) {
-                versionOverride.versionId = fsrVersionIds[i];
-                break;
-            }
-        }
+        versionOverride.versionId = Query(fsrVersion);
         if (versionOverride.versionId == 0) {
             return ffx::ReturnCode::ErrorNoProvider;
         }

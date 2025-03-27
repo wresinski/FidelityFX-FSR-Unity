@@ -67,6 +67,7 @@ class FSR3
 {
 public:
     ~FSR3() { Destroy(); }
+    uint64_t Query(uint32_t fsrVersion) { return fsrVersion == 3; }
     FfxErrorCode Init(const InitParam& initParam);
     void Destroy();
     std::array<float, 2> GetJitterOffset(const int32_t index, const int32_t renderWidth, const int32_t displayWidth);

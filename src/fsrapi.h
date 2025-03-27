@@ -67,6 +67,7 @@ class FSRAPI
 {
 public:
     ~FSRAPI() { Destroy(); }
+    uint64_t Query(uint32_t fsrVersion);
     ffx::ReturnCode Init(const InitParam& initParam, uint32_t fsrVersion = 0);
     void Destroy();
     std::array<float, 2> GetJitterOffset(const int32_t index, const int32_t renderWidth, const int32_t displayWidth);
