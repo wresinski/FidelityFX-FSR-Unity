@@ -1,7 +1,7 @@
 #include "fsr2.h"
 
 #include <memory>
-#include <vector>
+#include <unordered_map>
 
 #include "fsrunityplugin.h"
 #include "device.h"
@@ -22,11 +22,12 @@ FfxResource GetResourceByID(FfxFsr2Context* context, UnityTextureID textureID, c
 
 FSR2& GetFSRInstance(uint32_t id)
 {
-    static std::vector<std::unique_ptr<FSR2> > instances;
-    while (instances.size() <= id) {
-        instances.emplace_back(new FSR2());
+    static std::unordered_map<uint32_t, std::unique_ptr<FSR2>> instances_map;
+    auto it = instances_map.find(id);
+    if (it == instances_map.end()) {
+        instances_map[id] = std::make_unique<FSR2>();
     }
-    return *instances[id];
+    return *instances_map[id];
 }
 
 FfxErrorCode FSR2::Init(const InitParam& initParam)
@@ -55,7 +56,7 @@ FfxErrorCode FSR2::Init(const InitParam& initParam)
 void FSR2::Destroy()
 {
     if (m_ContextCreated) {
-        Device::Instance().Wait();
+        Device::Instance().Wait(m_FenceValue);
         ffxFsr2ContextDestroy(&m_Context);
         m_ContextCreated = false;
     }
@@ -90,7 +91,7 @@ FfxErrorCode FSR2::GenerateReactiveMask(const GenReactiveParam& genReactiveParam
         if (err != FFX_OK) {
             FSR_ERROR("FFXFSR2 GenerateReactiveMask failed");
         }
-        Device::Instance().ExecuteCommandList(commandList);
+        m_FenceValue = Device::Instance().ExecuteCommandList(commandList);
         return err;
     } else
         return !FFX_OK;
@@ -122,8 +123,8 @@ FfxErrorCode FSR2::Dispatch(const DispatchParam& dispatchParam)
         dispatchDesc.renderSize.height = dispatchParam.renderSizeHeight;
         dispatchDesc.enableSharpening = dispatchParam.enableSharpening;
         dispatchDesc.sharpness = dispatchParam.sharpness;
-        dispatchDesc.frameTimeDelta = dispatchParam.frameTimeDelta * 1000;
-        dispatchDesc.preExposure = 1.0f;
+        dispatchDesc.frameTimeDelta = dispatchParam.frameTimeDelta;
+        dispatchDesc.preExposure = dispatchParam.preExposure;
         dispatchDesc.reset = m_Reset;
         dispatchDesc.cameraNear = dispatchParam.cameraNear;
         dispatchDesc.cameraFar = dispatchParam.cameraFar;
@@ -133,7 +134,7 @@ FfxErrorCode FSR2::Dispatch(const DispatchParam& dispatchParam)
         if (err != FFX_OK) {
             FSR_ERROR("FFXFSR2 Dispatch failed");
         }
-        Device::Instance().ExecuteCommandList(commandList);
+        m_FenceValue = Device::Instance().ExecuteCommandList(commandList);
         return err;
     } else
         return !FFX_OK;

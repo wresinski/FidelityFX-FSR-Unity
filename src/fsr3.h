@@ -58,6 +58,7 @@ struct DispatchParam
     bool enableSharpening;
     float sharpness;
     float frameTimeDelta;
+    float preExposure;
     float cameraNear;
     float cameraFar;
     float cameraFovAngleVertical;
@@ -80,6 +81,7 @@ private:
     bool m_ContextCreated = false;
     std::vector<char> m_ScratchBuffer;
     bool m_Reset = true;
+    uint64_t m_FenceValue = 0;
 
     std::array<uint32_t, TextureName::MAX> m_TextureIDs = {};
 };

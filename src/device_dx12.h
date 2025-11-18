@@ -22,8 +22,9 @@ public:
     virtual void* GetNativeResourceByID(UnityTextureID textureID, void* desc = nullptr, uint32_t state = 0, bool observeOnly = true) override;
     virtual void* GetNativeDevice() override;
     virtual void* GetNativeCommandList() override;
-    virtual void ExecuteCommandList(void* commandList) override;
+    virtual uint64_t ExecuteCommandList(void* commandList) override;
     virtual void Wait() override;
+    virtual void Wait(uint64_t fenceValue) override;
 
 private:
     virtual bool InternalInit() override;

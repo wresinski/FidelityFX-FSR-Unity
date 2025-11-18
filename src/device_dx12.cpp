@@ -102,12 +102,13 @@ void* DeviceDX12::GetNativeCommandList()
     return d3d12CommandList;
 }
 
-void DeviceDX12::ExecuteCommandList(void* commandList)
+uint64_t DeviceDX12::ExecuteCommandList(void* commandList)
 {
+    uint64_t fenceValue = 0;
     static_cast<ID3D12GraphicsCommandList2*>(commandList)->Close();
     if (m_pUnityGraphicsD3D12 != nullptr) {
         //m_pUnityGraphicsD3D12->GetCommandQueue()->ExecuteCommandLists(1, reinterpret_cast<ID3D12CommandList* const*>(&commandList));
-        uint64_t fenceValue = m_pUnityGraphicsD3D12->ExecuteCommandList(static_cast<ID3D12GraphicsCommandList*>(commandList), static_cast<int>(m_ResourceState.size()), m_ResourceState.data());
+        fenceValue = m_pUnityGraphicsD3D12->ExecuteCommandList(static_cast<ID3D12GraphicsCommandList*>(commandList), static_cast<int>(m_ResourceState.size()), m_ResourceState.data());
         for (auto& commandBuffer : m_CommandBufferList) {
             if (commandList == commandBuffer.d3d12CommandList) {
                 commandBuffer.fenceValue = fenceValue;
@@ -116,6 +117,7 @@ void DeviceDX12::ExecuteCommandList(void* commandList)
         }
         m_ResourceState.clear();
     }
+    return fenceValue;
 }
 
 void DeviceDX12::Wait()
@@ -132,6 +134,22 @@ void DeviceDX12::Wait()
                 WaitForSingleObject(hHandleFenceEvent, INFINITE);
                 CloseHandle(hHandleFenceEvent);
             }
+        }
+    }
+}
+
+void DeviceDX12::Wait(uint64_t fenceValue)
+{
+    if (m_pD3D12Fence != nullptr) {
+        if (m_pD3D12Fence->GetCompletedValue() < fenceValue) {
+            HANDLE hHandleFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+            HRESULT hr = m_pD3D12Fence->SetEventOnCompletion(fenceValue, hHandleFenceEvent);
+            if (FAILED(hr)) {
+                FSR_ERROR("Failed to set event on completion!");
+                return;
+            }
+            WaitForSingleObject(hHandleFenceEvent, INFINITE);
+            CloseHandle(hHandleFenceEvent);
         }
     }
 }

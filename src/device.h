@@ -30,8 +30,9 @@ public:
     virtual void* GetNativeResourceByID(UnityTextureID textureID, void* desc = nullptr, uint32_t state = 0, bool observeOnly = true) = 0;
     virtual void* GetNativeDevice() = 0;
     virtual void* GetNativeCommandList() = 0;
-    virtual void ExecuteCommandList(void* commandList) {}
+    virtual uint64_t ExecuteCommandList(void* commandList) { return 0; }
     virtual void Wait() {}
+    virtual void Wait(uint64_t fenceValue) {}
 
 private:
     virtual bool InternalInit() = 0;

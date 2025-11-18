@@ -58,6 +58,7 @@ struct DispatchParam
     bool enableSharpening;
     float sharpness;
     float frameTimeDelta;
+    float preExposure;
     float cameraNear;
     float cameraFar;
     float cameraFovAngleVertical;
@@ -79,6 +80,7 @@ private:
     ffx::Context m_Context;
     bool m_ContextCreated = false;
     bool m_Reset = true;
+    uint64_t m_FenceValue = 0;
 
     std::array<uint32_t, TextureName::MAX> m_TextureIDs = {};
 };

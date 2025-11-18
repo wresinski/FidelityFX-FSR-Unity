@@ -102,7 +102,7 @@ extern "C" {
 
     void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API FSRCallback(int eventID, void* data)
     {
-        uint32_t instanceID = eventID >> 16;
+        uint32_t instanceID = (uint32_t)eventID >> 16;
         eventID &= 65535;
         if (data != nullptr) {
             switch ((FSRUnityPlugin::PassEvent)eventID) {

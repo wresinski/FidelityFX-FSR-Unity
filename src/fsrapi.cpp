@@ -1,7 +1,7 @@
 #include "fsrapi.h"
 
 #include <memory>
-#include <vector>
+#include <unordered_map>
 
 #include "fsrunityplugin.h"
 #include "device.h"
@@ -17,11 +17,12 @@ FfxApiResource ffxApiGetResourceByID(UnityTextureID textureID, uint32_t state = 
 
 FSRAPI& GetFSRInstance(uint32_t id)
 {
-    static std::vector<std::unique_ptr<FSRAPI> > instances;
-    while (instances.size() <= id) {
-        instances.emplace_back(new FSRAPI());
+    static std::unordered_map<uint32_t, std::unique_ptr<FSRAPI>> instances_map;
+    auto it = instances_map.find(id);
+    if (it == instances_map.end()) {
+        instances_map[id] = std::make_unique<FSRAPI>();
     }
-    return *instances[id];
+    return *instances_map[id];
 }
 
 uint64_t FSRAPI::Query(uint32_t fsrVersion)
@@ -106,7 +107,7 @@ ffx::ReturnCode FSRAPI::Init(const InitParam& initParam, uint32_t fsrVersion)
 void FSRAPI::Destroy()
 {
     if (m_ContextCreated) {
-        Device::Instance().Wait();
+        Device::Instance().Wait(m_FenceValue);
         ffx::DestroyContext(m_Context);
         m_ContextCreated = false;
     }
@@ -161,7 +162,7 @@ ffx::ReturnCode FSRAPI::GenerateReactiveMask(const GenReactiveParam& genReactive
         if (retCode != ffx::ReturnCode::Ok) {
             FSR_ERROR("ffxDispatch GenerateReactiveMask failed");
         }
-        Device::Instance().ExecuteCommandList(commandList);
+        m_FenceValue = Device::Instance().ExecuteCommandList(commandList);
         return retCode;
     } else
         return ffx::ReturnCode::Error;
@@ -193,8 +194,8 @@ ffx::ReturnCode FSRAPI::Dispatch(const DispatchParam& dispatchParam)
         dispatchDesc.reset = m_Reset;
         dispatchDesc.enableSharpening = dispatchParam.enableSharpening;
         dispatchDesc.sharpness = dispatchParam.sharpness;
-        dispatchDesc.frameTimeDelta = dispatchParam.frameTimeDelta * 1000;
-        dispatchDesc.preExposure = 1.0f;
+        dispatchDesc.frameTimeDelta = dispatchParam.frameTimeDelta;
+        dispatchDesc.preExposure = dispatchParam.preExposure;
         dispatchDesc.renderSize.width = dispatchParam.renderSizeWidth;
         dispatchDesc.renderSize.height = dispatchParam.renderSizeHeight;
         dispatchDesc.cameraFovAngleVertical = dispatchParam.cameraFovAngleVertical;
@@ -207,7 +208,7 @@ ffx::ReturnCode FSRAPI::Dispatch(const DispatchParam& dispatchParam)
         if (retCode != ffx::ReturnCode::Ok) {
             FSR_ERROR("ffxDispatch Dispatch failed");
         }
-        Device::Instance().ExecuteCommandList(commandList);
+        m_FenceValue = Device::Instance().ExecuteCommandList(commandList);
         return retCode;
     } else
         return ffx::ReturnCode::Error;
