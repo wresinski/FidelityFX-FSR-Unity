@@ -15,6 +15,8 @@ else()
 	${CMAKE_CURRENT_SOURCE_DIR}/device_dx11.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/device_dx12.h
 	${CMAKE_CURRENT_SOURCE_DIR}/device_dx12.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/device_vk.h
+	${CMAKE_CURRENT_SOURCE_DIR}/device_vk.cpp
 	)
 endif()
 
@@ -47,11 +49,17 @@ if(FSR_BACKEND STREQUAL "dx11")
 elseif(FSR_BACKEND STREQUAL "dx12")
 	set(FSR_BACKEND_DEF "FSR_BACKEND_DX12")
 	target_link_libraries(${FSR_UNITY_PLUGIN} PRIVATE dxguid)
+elseif(FSR_BACKEND STREQUAL "vk")
+	set(FSR_BACKEND_DEF "FSR_BACKEND_VK")
+	find_package(Vulkan REQUIRED)
+	target_link_libraries(${FSR_UNITY_PLUGIN} PRIVATE Vulkan::Vulkan)
 elseif(FSR_BACKEND STREQUAL "all")
 	set(FSR_BACKEND_DEF "FSR_BACKEND_ALL")
 	target_link_libraries(${FSR_UNITY_PLUGIN} PRIVATE dxguid)
+	find_package(Vulkan REQUIRED)
+	target_link_libraries(${FSR_UNITY_PLUGIN} PRIVATE Vulkan::Vulkan)
 else()
-	message(FATAL_ERROR "Unsupported FSR backend, must be one of: [dx11, dx12, all]")
+	message(FATAL_ERROR "Unsupported FSR backend, must be one of: [dx11, dx12, vk, all]")
 endif()
 
 set(FSR_VERSION_DEF)

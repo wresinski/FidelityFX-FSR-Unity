@@ -7,8 +7,11 @@
 #include "device.h"
 #include "dllloader.h"
 
-#if defined(FSR_BACKEND_DX12) || defined(FSR_BACKEND_ALL)
-#include "dx12/ffx_api_dx12.hpp"
+#include "ffx_api.hpp"
+#include "fsrapi_util.hpp"
+
+#if defined(FSR_BACKEND_VK) || defined(FSR_BACKEND_ALL)
+#include "IUnityGraphicsVulkan.h"
 #endif
 
 
@@ -83,6 +86,22 @@ ffx::ReturnCode FSRAPI::Init(const InitParam& initParam, uint32_t fsrVersion)
         ffx::CreateBackendDX12Desc backendDesc{};
         backendDesc.header.type = FFX_API_CREATE_CONTEXT_DESC_TYPE_BACKEND_DX12;
         backendDesc.device = static_cast<ID3D12Device*>(Device::Instance().GetNativeDevice());
+        if (fsrVersion != 0) {
+            retCode = ffx::CreateContext(m_Context, nullptr, createFsr, backendDesc, versionOverride);
+        } else {
+            retCode = ffx::CreateContext(m_Context, nullptr, createFsr, backendDesc);
+        }
+        break;
+    }
+#endif
+#if defined(FSR_BACKEND_VK) || defined(FSR_BACKEND_ALL)
+    case kUnityGfxRendererVulkan:
+    {
+        ffx::CreateBackendVKDesc backendDesc{};
+        backendDesc.header.type = FFX_API_CREATE_CONTEXT_DESC_TYPE_BACKEND_VK;
+        backendDesc.vkDevice = static_cast<VkDevice>(Device::Instance().GetNativeDevice());
+        backendDesc.vkPhysicalDevice = static_cast<IUnityGraphicsVulkanV2*>(Device::Instance().GetGraphicsInterfaces())->Instance().physicalDevice;
+        backendDesc.vkDeviceProcAddr = vkGetDeviceProcAddr;
         if (fsrVersion != 0) {
             retCode = ffx::CreateContext(m_Context, nullptr, createFsr, backendDesc, versionOverride);
         } else {
@@ -248,6 +267,26 @@ FfxApiResource ffxApiGetResource(void* resource, uint32_t state, uint32_t additi
         return ffxApiGetResourceDX12(static_cast<ID3D12Resource*>(nativeResource), state);
     }
 #endif
+#if defined(FSR_BACKEND_VK) || defined(FSR_BACKEND_ALL)
+    case kUnityGfxRendererVulkan:
+    {
+        UnityVulkanImage vulkanImage = {};
+        void* nativeResource = Device::Instance().GetNativeResource(resource, &vulkanImage);
+        VkImageCreateInfo createInfo = {};
+        createInfo.imageType = vulkanImage.type;
+        createInfo.format = vulkanImage.format;
+        createInfo.extent = vulkanImage.extent;
+        createInfo.mipLevels = vulkanImage.mipCount;
+        createInfo.arrayLayers = vulkanImage.layers;
+        createInfo.samples = vulkanImage.samples;
+        createInfo.tiling = vulkanImage.tiling;
+        createInfo.usage = vulkanImage.usage;
+        createInfo.queueFamilyIndexCount = static_cast<IUnityGraphicsVulkanV2*>(Device::Instance().GetGraphicsInterfaces())->Instance().queueFamilyIndex;
+        createInfo.initialLayout = vulkanImage.layout;
+        createInfo.pNext = vulkanImage.image;
+        return ffxApiGetResourceVK(nativeResource, ffxApiGetImageResourceDescriptionVK(vulkanImage.image, createInfo, additionalUsages), state);
+    }
+#endif
     default:
         FSR_ERROR("Unsupported fsrapi backend");
         return FfxApiResource{};
@@ -281,6 +320,26 @@ FfxApiResource ffxApiGetResourceByID(UnityTextureID textureID, uint32_t state, u
         return ffxApiGetResourceDX12(static_cast<ID3D12Resource*>(nativeResource), state);
     }
 #endif
+#if defined(FSR_BACKEND_VK) || defined(FSR_BACKEND_ALL)
+    case kUnityGfxRendererVulkan:
+    {
+        UnityVulkanImage vulkanImage = {};
+        void* nativeResource = Device::Instance().GetNativeResourceByID(textureID, &vulkanImage);
+        VkImageCreateInfo createInfo = {};
+        createInfo.imageType = vulkanImage.type;
+        createInfo.format = vulkanImage.format;
+        createInfo.extent = vulkanImage.extent;
+        createInfo.mipLevels = vulkanImage.mipCount;
+        createInfo.arrayLayers = vulkanImage.layers;
+        createInfo.samples = vulkanImage.samples;
+        createInfo.tiling = vulkanImage.tiling;
+        createInfo.usage = vulkanImage.usage;
+        createInfo.queueFamilyIndexCount = static_cast<IUnityGraphicsVulkanV2*>(Device::Instance().GetGraphicsInterfaces())->Instance().queueFamilyIndex;
+        createInfo.initialLayout = vulkanImage.layout;
+        createInfo.pNext = vulkanImage.image;
+        return ffxApiGetResourceVK(nativeResource, ffxApiGetImageResourceDescriptionVK(vulkanImage.image, createInfo, additionalUsages), state);
+    }
+#endif
     default:
         FSR_ERROR("Unsupported fsrapi backend");
         return FfxApiResource{};
@@ -297,6 +356,12 @@ inline std::wstring GetDllName()
         return L"amd_fidelityfx_dx12d.dll";
 #else
         return L"amd_fidelityfx_dx12.dll";
+#endif
+    case kUnityGfxRendererVulkan:
+#if defined(_DEBUG)
+        return L"amd_fidelityfx_vkd.dll";
+#else
+        return L"amd_fidelityfx_vk.dll";
 #endif
     default:
         FSR_ERROR("Unsupported fsrapi backend");

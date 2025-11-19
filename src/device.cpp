@@ -11,6 +11,9 @@
 #if defined(FSR_BACKEND_DX12) || defined(FSR_BACKEND_ALL)
 #include "device_dx12.h"
 #endif
+#if defined(FSR_BACKEND_VK) || defined(FSR_BACKEND_ALL)
+#include "device_vk.h"
+#endif
 
 
 Device& Device::Instance(UnityGfxRenderer deviceType)
@@ -27,6 +30,11 @@ Device& Device::Instance(UnityGfxRenderer deviceType)
 #if defined(FSR_BACKEND_DX12) || defined(FSR_BACKEND_ALL)
     case kUnityGfxRendererD3D12:
         instance.reset(new DeviceDX12);
+        break;
+#endif
+#if defined(FSR_BACKEND_VK) || defined(FSR_BACKEND_ALL)
+    case kUnityGfxRendererVulkan:
+        instance.reset(new DeviceVK);
         break;
 #endif
     case kUnityGfxRendererNull:
